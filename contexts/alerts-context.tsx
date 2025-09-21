@@ -18,6 +18,13 @@ export interface Alert {
   expiresAt?: Date
 }
 
+export interface AlertPreferences {
+  showNotifications: boolean
+  hasSeenInitialWarning: boolean
+  autoGenerate: boolean
+  minimumSeverity: Alert["severity"]
+}
+
 interface AlertsContextType {
   alerts: Alert[]
   unreadCount: number
@@ -27,6 +34,8 @@ interface AlertsContextType {
   dismissAlert: (alertId: string) => void
   getAlertsByType: (type: Alert["type"]) => Alert[]
   getActiveAlerts: () => Alert[]
+  alertPreferences: AlertPreferences
+  updateAlertPreferences: (newPreferences: Partial<AlertPreferences>) => void
 }
 
 const AlertsContext = createContext<AlertsContextType | undefined>(undefined)
@@ -42,8 +51,13 @@ export const useAlerts = () => {
 export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { t } = useLanguage()
   const [alerts, setAlerts] = useState<Alert[]>([])
+  const [alertPreferences, setAlertPreferences] = useState<AlertPreferences>({
+    showNotifications: false,
+    hasSeenInitialWarning: false,
+    autoGenerate: false,
+    minimumSeverity: "medium",
+  })
 
-  // Initialize with sample alerts and set up auto-generation
   useEffect(() => {
     const sampleAlerts: Alert[] = [
       {
@@ -108,13 +122,33 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     setAlerts(sampleAlerts)
 
-    // Set up periodic alert generation for demo purposes
-    const alertInterval = setInterval(() => {
-      generateRandomAlert()
-    }, 300000) // Generate new alert every 5 minutes
+    if (!alertPreferences.hasSeenInitialWarning) {
+      const warningAlert: Alert = {
+        id: "initial-warning",
+        type: "weather",
+        severity: "medium",
+        title: "Alert System Available",
+        message:
+          "Smart alerts are available to help you manage your crops. Enable notifications in settings to receive real-time updates.",
+        timestamp: new Date(),
+        isRead: false,
+        actionRequired: false,
+      }
+      setAlerts((prev) => [warningAlert, ...prev])
+      setAlertPreferences((prev) => ({ ...prev, hasSeenInitialWarning: true }))
+    }
 
-    return () => clearInterval(alertInterval)
-  }, [t])
+    let alertInterval: NodeJS.Timeout | null = null
+    if (alertPreferences.autoGenerate) {
+      alertInterval = setInterval(() => {
+        generateRandomAlert()
+      }, 300000) // Generate new alert every 5 minutes
+    }
+
+    return () => {
+      if (alertInterval) clearInterval(alertInterval)
+    }
+  }, [t, alertPreferences.hasSeenInitialWarning, alertPreferences.autoGenerate])
 
   const generateRandomAlert = useCallback(() => {
     const alertTypes: Alert["type"][] = ["weather", "pest", "market", "irrigation", "fertilizer", "harvest"]
@@ -222,6 +256,10 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const unreadCount = alerts.filter((alert) => !alert.isRead).length
 
+  const updateAlertPreferences = useCallback((newPreferences: Partial<AlertPreferences>) => {
+    setAlertPreferences((prev) => ({ ...prev, ...newPreferences }))
+  }, [])
+
   return (
     <AlertsContext.Provider
       value={{
@@ -233,6 +271,8 @@ export const AlertsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         dismissAlert,
         getAlertsByType,
         getActiveAlerts,
+        alertPreferences,
+        updateAlertPreferences,
       }}
     >
       {children}

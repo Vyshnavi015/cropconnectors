@@ -10,27 +10,35 @@ import { X, Volume2, CheckCircle, Bell, Zap, AlertTriangle, Info } from "lucide-
 import { motion, AnimatePresence } from "framer-motion"
 
 export function EnhancedAlertNotification() {
-  const { alerts, markAsRead, dismissAlert } = useAlerts()
+  const { alerts, markAsRead, dismissAlert, alertPreferences } = useAlerts()
   const { speak } = useVoice()
   const [visibleAlerts, setVisibleAlerts] = useState<Alert[]>([])
   const [hasSpoken, setHasSpoken] = useState<Set<string>>(new Set())
 
   useEffect(() => {
-    // Show up to 3 most recent unread critical or high severity alerts
+    if (!alertPreferences.showNotifications) {
+      setVisibleAlerts([])
+      return
+    }
+
+    const severityOrder = { low: 1, medium: 2, high: 3, critical: 4 }
+    const minSeverityLevel = severityOrder[alertPreferences.minimumSeverity]
+
     const criticalAlerts = alerts
-      .filter((alert) => !alert.isRead && (alert.severity === "critical" || alert.severity === "high"))
+      .filter((alert) => !alert.isRead && severityOrder[alert.severity] >= minSeverityLevel)
       .slice(0, 3)
 
     setVisibleAlerts(criticalAlerts)
 
-    // Speak new alerts
-    criticalAlerts.forEach((alert) => {
-      if (!hasSpoken.has(alert.id)) {
-        speak(`${alert.severity} alert: ${alert.title}. ${alert.message}`)
-        setHasSpoken((prev) => new Set(prev).add(alert.id))
-      }
-    })
-  }, [alerts, speak, hasSpoken])
+    if (alertPreferences.showNotifications) {
+      criticalAlerts.forEach((alert) => {
+        if (!hasSpoken.has(alert.id)) {
+          speak(`${alert.severity} alert: ${alert.title}. ${alert.message}`)
+          setHasSpoken((prev) => new Set(prev).add(alert.id))
+        }
+      })
+    }
+  }, [alerts, speak, hasSpoken, alertPreferences.showNotifications, alertPreferences.minimumSeverity])
 
   const handleDismiss = (alertId: string) => {
     setVisibleAlerts((prev) => prev.filter((alert) => alert.id !== alertId))

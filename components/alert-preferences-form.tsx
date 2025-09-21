@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
-import { Bell, CheckCircle, AlertCircle, MapPin, User } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Bell, CheckCircle, AlertCircle, MapPin, User, Settings } from "lucide-react"
 import { useLanguage } from "@/contexts/language-context"
 import { useAlerts } from "@/contexts/alerts-context"
 import { motion } from "framer-motion"
@@ -24,7 +25,7 @@ export function AlertPreferencesForm({
   onPreferencesChange,
 }: AlertPreferencesFormProps) {
   const { t, language } = useLanguage()
-  const { addAlert } = useAlerts()
+  const { addAlert, alertPreferences, updateAlertPreferences } = useAlerts()
 
   const [formData, setFormData] = useState({
     name: defaultName,
@@ -57,6 +58,11 @@ export function AlertPreferencesForm({
 
     // Simulate saving preferences
     await new Promise((resolve) => setTimeout(resolve, 1000))
+
+    updateAlertPreferences({
+      showNotifications: formData.notifications.popup,
+      autoGenerate: Object.values(formData.preferences).some(Boolean),
+    })
 
     // Add a confirmation alert
     addAlert({
@@ -93,11 +99,17 @@ export function AlertPreferencesForm({
     }))
   }
 
+  const handleSeverityChange = (severity: string) => {
+    updateAlertPreferences({
+      minimumSeverity: severity as any,
+    })
+  }
+
   return (
     <Card className="bg-white/80 backdrop-blur-sm border-emerald-200">
       <CardHeader>
         <CardTitle className="text-emerald-800 flex items-center gap-2">
-          <Bell className="h-5 w-5" />
+          <Settings className="h-5 w-5" />
           Alert Preferences
         </CardTitle>
         <CardDescription className="text-emerald-600">
@@ -115,6 +127,50 @@ export function AlertPreferencesForm({
             <span className="text-green-700 text-sm font-medium">Alert preferences updated successfully!</span>
           </motion.div>
         )}
+
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Bell className="h-4 w-4 text-emerald-600" />
+            <Label className="text-emerald-700 font-medium">Alert Control</Label>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="flex items-center justify-between p-3 bg-emerald-50 rounded-lg border border-emerald-100">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-emerald-800">📱 Show Notifications</span>
+              </div>
+              <Switch
+                checked={alertPreferences.showNotifications}
+                onCheckedChange={(checked) => updateAlertPreferences({ showNotifications: checked })}
+              />
+            </div>
+
+            <div className="flex items-center justify-between p-3 bg-emerald-50 rounded-lg border border-emerald-100">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-emerald-800">🔄 Auto Generate Alerts</span>
+              </div>
+              <Switch
+                checked={alertPreferences.autoGenerate}
+                onCheckedChange={(checked) => updateAlertPreferences({ autoGenerate: checked })}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-emerald-700">Minimum Alert Severity</Label>
+            <Select value={alertPreferences.minimumSeverity} onValueChange={handleSeverityChange}>
+              <SelectTrigger className="border-emerald-200 focus:border-emerald-400">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="low">Low - All alerts</SelectItem>
+                <SelectItem value="medium">Medium - Important alerts</SelectItem>
+                <SelectItem value="high">High - Urgent alerts only</SelectItem>
+                <SelectItem value="critical">Critical - Emergency alerts only</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
@@ -231,11 +287,10 @@ export function AlertPreferencesForm({
         <div className="flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
           <CheckCircle className="h-4 w-4 text-emerald-500" />
           <span className="text-emerald-700 text-sm">
-            All alerts will be displayed in the app with{" "}
-            {formData.notifications.voice ? "voice announcements" : "visual notifications"}
+            Alerts are now user-controlled and will only appear when you enable notifications
           </span>
           <Badge variant="secondary" className="bg-emerald-100 text-emerald-800">
-            In-App Alerts
+            User Controlled
           </Badge>
         </div>
       </CardContent>
